@@ -1,0 +1,40 @@
+# Build outputs
+build/
+*.build/
+cmake-build-*/
+
+# JUCE generated headers
+JuceLibraryCode/
+*.ipynb
+# IDEs
+.idea/
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+*.sln
+*.vcxproj*
+.spec*
+
+# Compiled objects / binaries
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Plugin bundles (we build these; don't commit them)
+*.vst3
+*.component
+*.app
+
+# Python / Jupyter
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -2,19 +2,25 @@
 
 A simple overdrive plugin I built. It runs as a VST3, Audio Unit, or standalone macOS app. Mostly to experiment with Juce.
 
+![VS Guitar Overdrive](image.png)
+
+
 ## What it does
 
-It adds warm, soft-clipping overdrive to a guitar signal with three controls:
+It adds warm, soft-clipping overdrive to a guitar signal with four controls:
 
 - **Drive** — pushes the signal harder into the clipper
+- **Dynamic** — makes the drive follow your playing intensity
 - **Tone** — shapes the brightness with a low-pass/high-pass shelf
 - **Level** — sets the output volume
 
 The signal chain is:
 
 ```
-input → gain boost → tanh soft clipper → tone filter → output gain
+input → envelope detector → dynamic drive → tanh soft clipper → tone filter → output gain
 ```
+
+With Dynamic at 0, the plugin behaves like a normal overdrive. Turn it up and soft notes stay clean while power chords bloom into distortion.
 
 ## Build
 

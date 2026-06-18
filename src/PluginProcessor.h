@@ -33,15 +33,20 @@ public:
 
     juce::AudioProcessorValueTreeState& getValueTreeState();
 
+    std::atomic<float> distortionActivity{0.0f};
+    std::atomic<float> distortionThresholdMarker{0.0f};
+
 private:
     juce::AudioProcessorValueTreeState parameters;
 
     std::atomic<float>* driveParam = nullptr;
     std::atomic<float>* toneParam = nullptr;
     std::atomic<float>* levelParam = nullptr;
+    std::atomic<float>* dynamicParam = nullptr;
 
     juce::dsp::FirstOrderTPTFilter<float> toneFilter;
     double currentSampleRate = 44100.0;
+    float envelope = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GuitarOverdriveAudioProcessor)
 };

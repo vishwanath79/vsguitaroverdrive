@@ -34,7 +34,6 @@ public:
     juce::AudioProcessorValueTreeState& getValueTreeState();
 
     std::atomic<float> distortionActivity{0.0f};
-    std::atomic<float> distortionThresholdMarker{0.0f};
 
 private:
     juce::AudioProcessorValueTreeState parameters;

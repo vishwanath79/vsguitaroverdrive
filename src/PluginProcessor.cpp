@@ -81,12 +81,15 @@ void GuitarOverdriveAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     // Map 0..1 level knob to dB range -24..+12 dB.
     const float outputGain = juce::Decibels::decibelsToGain(-24.0f + level * 36.0f);
 
-    // Envelope follower time constant: about 2 ms attack/release for responsiveness.
-    const float envCoeff = 1.0f - std::exp(-1.0f / (0.002f * static_cast<float>(currentSampleRate)));
+    // Fast attack catches transients, slow release holds level across sustained notes.
+    const float sr = static_cast<float>(currentSampleRate);
+    const float attackCoeff  = 1.0f - std::exp(-1.0f / (0.005f * sr));
+    const float releaseCoeff = 1.0f - std::exp(-1.0f / (0.150f * sr));
 
-    // Very low threshold and a steep transition for an extreme dynamic response.
-    const float threshold = 0.0015f;
-    const float knee = 0.15f;
+    // Tuned to real guitar levels: quiet playing stays below threshold,
+    // loud playing saturates. The old 0.0015/0.15 pair pegged at 1.0 constantly.
+    const float threshold = 0.02f;
+    const float knee = 0.25f;
 
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
@@ -96,26 +99,21 @@ void GuitarOverdriveAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         {
             float x = channelData[sample];
 
-            // Update envelope detector from the input.
+            // Envelope detector: attack on rising input, release on falling.
             const float inputAbs = std::abs(x);
+            const float envCoeff = (inputAbs > envelope) ? attackCoeff : releaseCoeff;
             envelope += envCoeff * (inputAbs - envelope);
 
-            // Compute dynamic intensity: 0 for soft playing, 1 for loud playing.
+            // 0 = quiet, 1 = loud. Linear across the knee for musical response.
             float intensity = juce::jlimit(0.0f, 1.0f, (envelope - threshold) / knee);
 
-            // Extreme dynamic mode:
-            // When Dynamic is 1, soft notes are forced almost clean (factor 0),
-            // loud notes add up to 2x the normal drive boost on top of the Drive knob.
-            float dynamicFactor = intensity * 2.0f;
+            // Center on 0.5 so medium playing leaves Drive alone. Loud adds grit,
+            // soft trims it. Range goes past 1.0 so loud notes exceed the knob.
+            float dynamicFactor = (intensity - 0.5f) * 2.0f;
+            float effectiveDrive = juce::jlimit(0.0f, 1.5f, drive + dynamic * dynamicFactor * 0.8f);
 
-            // Blend between static drive and extreme dynamic drive.
-            float effectiveDrive = drive + dynamic * dynamicFactor;
-            effectiveDrive = juce::jlimit(0.0f, 1.0f, effectiveDrive);
-
-            // Expose the activity and threshold marker for the UI meter.
-            distortionActivity.store(effectiveDrive);
-            float marker = juce::jlimit(0.0f, 1.0f, (threshold * 2.0f)); // arbitrary scale for visibility
-            distortionThresholdMarker.store(marker);
+            // Expose activity for the UI meter.
+            distortionActivity.store(juce::jlimit(0.0f, 1.0f, effectiveDrive));
 
             // Map effective drive to input gain.
             const float inputGain = 1.0f + effectiveDrive * 39.0f;

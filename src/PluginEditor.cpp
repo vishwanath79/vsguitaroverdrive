@@ -59,10 +59,10 @@ GuitarOverdriveAudioProcessorEditor::GuitarOverdriveAudioProcessorEditor(GuitarO
     levelAttachment = std::make_unique<juce::SliderParameterAttachment>(
         *processorRef.getValueTreeState().getParameter("level"), levelSlider);
 
-    setSize(520, 310);
+    setSize(520, 360);
 
-    // Repaint the activity meter at ~30 fps.
-    startTimerHz(30);
+    // Repaint the activity meter at ~60 fps so pick transients read on camera.
+    startTimerHz(60);
 }
 
 GuitarOverdriveAudioProcessorEditor::~GuitarOverdriveAudioProcessorEditor() = default;
@@ -75,8 +75,8 @@ void GuitarOverdriveAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawFittedText("VS Guitar Overdrive", getLocalBounds().removeFromTop(30),
                      juce::Justification::centred, 1);
 
-    // Big distortion activity bar at the bottom.
-    auto meterArea = getLocalBounds().removeFromBottom(30).reduced(20, 5);
+    // Distortion activity bar at the bottom. Tall enough to read on camera.
+    auto meterArea = getLocalBounds().removeFromBottom(50).reduced(20, 5);
 
     // Background bar.
     g.setColour(juce::Colours::black);
@@ -90,6 +90,17 @@ void GuitarOverdriveAudioProcessorEditor::paint(juce::Graphics& g)
     g.setColour(juce::Colour::fromHSV(0.08f - smoothedActivity * 0.08f, 0.9f,
                                        0.4f + smoothedActivity * 0.6f, 1.0f));
     g.fillRoundedRectangle(fillArea, 4.0f);
+
+    // Peak-hold marker: thin bright line tracking the last transient. Decays
+    // slowly so a hard pick attack stays visible for a beat after the note.
+    if (meterPeak > 0.01f)
+    {
+        auto peakLine = meterArea.toFloat();
+        peakLine.setX(meterArea.getX() + meterArea.getWidth() * meterPeak);
+        peakLine.setWidth(2.0f);
+        g.setColour(juce::Colours::white);
+        g.fillRect(peakLine);
+    }
 
     // Border.
     g.setColour(juce::Colours::lightgrey);
@@ -117,9 +128,27 @@ void GuitarOverdriveAudioProcessorEditor::resized()
 
 void GuitarOverdriveAudioProcessorEditor::timerCallback()
 {
-    // Smooth the activity value for a calmer meter movement.
     const float target = processorRef.distortionActivity.load();
-    smoothedActivity += 0.15f * (target - smoothedActivity);
+
+    // Fast attack so pick transients jump immediately, slower release so the
+    // bar falls back gracefully. Asymmetric is what makes the meter feel alive.
+    const float coeff = (target > smoothedActivity) ? 0.5f : 0.08f;
+    smoothedActivity += coeff * (target - smoothedActivity);
+
+    // Peak hold: latch the highest activity seen, hold for ~150 ms, then decay.
+    if (target > meterPeak)
+    {
+        meterPeak = target;
+        peakHoldSamples = 9;  // ~150 ms at 60 fps
+    }
+    else if (peakHoldSamples > 0)
+    {
+        --peakHoldSamples;
+    }
+    else
+    {
+        meterPeak = juce::jmax(0.0f, meterPeak - 0.01f);
+    }
 
     repaint();
 }

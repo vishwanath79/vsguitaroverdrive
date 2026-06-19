@@ -34,6 +34,9 @@ private:
     std::unique_ptr<juce::SliderParameterAttachment> levelAttachment;
 
     float smoothedActivity = 0.0f;
+    // Peak hold so transient attacks stay visible briefly on the meter.
+    float meterPeak = 0.0f;
+    int peakHoldSamples = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GuitarOverdriveAudioProcessorEditor)
 };
